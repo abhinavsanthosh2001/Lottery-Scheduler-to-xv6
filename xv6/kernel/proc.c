@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "rand.h"
 
 struct {
   struct spinlock lock;
@@ -98,6 +99,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->tickets = 1; // Initial process gets 1 ticket
   release(&ptable.lock);
 }
 
@@ -143,6 +145,7 @@ fork(void)
   }
   np->sz = proc->sz;
   np->parent = proc;
+  np->tickets = proc->tickets; // Child gets the same number of tickets as parent
   *np->tf = *proc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
@@ -252,36 +255,89 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+// void
+// scheduler(void)
+// {
+//   struct proc *p;
+
+//   for(;;){
+//     // Enable interrupts on this processor.
+//     sti();
+
+//     // Loop over process table looking for process to run.
+//     acquire(&ptable.lock);
+//     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+//       if(p->state != RUNNABLE)
+//         continue;
+
+//       // Switch to chosen process.  It is the process's job
+//       // to release ptable.lock and then reacquire it
+//       // before jumping back to us.
+//       proc = p;
+//       switchuvm(p);
+//       p->state = RUNNING;
+//       swtch(&cpu->scheduler, proc->context);
+//       switchkvm();
+
+//       // Process is done running for now.
+//       // It should have changed its p->state before coming back.
+//       proc = 0;
+//     }
+//     release(&ptable.lock);
+
+//   }
+// }
+
 void
 scheduler(void)
 {
   struct proc *p;
-
+  struct proc *selected_proc;
+  int total_tickets, winning_ticket, current_ticket;
+  
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
+    // Calculate the total number of tickets
+    total_tickets = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state == RUNNABLE)
+        total_tickets += p->tickets;
+    }
+
+    if(total_tickets > 0) {
+      // Generate a winning ticket
+      winning_ticket = rand() % total_tickets;
+      current_ticket = 0;
+
+      // Find the winning process
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state == RUNNABLE) {
+          current_ticket += p->tickets;
+          if(current_ticket > winning_ticket) {
+            selected_proc = p;
+            break;
+          }
+        }
+      }
+
+      // Switch to the chosen process
+      proc = selected_proc;
+      switchuvm(selected_proc);
+      selected_proc->state = RUNNING;
+      swtch(&cpu->scheduler, selected_proc->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
 
