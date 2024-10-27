@@ -5,7 +5,8 @@
 #include "mmu.h"
 #include "proc.h"
 #include "sysfunc.h"
-//#include "pstat.h"
+#include "pstat.h"
+#include "spinlock.h"
 
 int
 sys_fork(void)
@@ -102,23 +103,24 @@ sys_settickets(void)
   return 0;
 }
 
-// int
-// sys_getpinfo(void)
-// {
-//   struct pstat *ps;
-//   if(argptr(0, (void*)&ps, sizeof(*ps)) < 0)
-//     return -1;
+int
+sys_getpinfo(void)
+{
+  struct pstat *ps;
+  if(argptr(0, (void*)&ps, sizeof(*ps)) < 0 || ps == NULL)
+    return -1;
 
-//   acquire(&ptable.lock);
-//   for(int i = 0; i < NPROC; i++) {
-//     ps->inuse[i] = (ptable.proc[i].state != UNUSED);
-//     ps->tickets[i] = ptable.proc[i].tickets;
-//     ps->pid[i] = ptable.proc[i].pid;
-//     ps->ticks[i] = ptable.proc[i].ticks;
-//   }
-//   release(&ptable.lock);
+  acquire(&ptable.lock);
+  int i;
+  for(i = 0; i < NPROC; i++) {
+    ps->inuse[i] = (ptable.proc[i].state != UNUSED);
+    ps->tickets[i] = ptable.proc[i].tickets;
+    ps->pid[i] = ptable.proc[i].pid;
+    ps->ticks[i] = ptable.proc[i].ticks;
+  }
+  release(&ptable.lock);
 
-//   return 0;
-// }
+  return 0;
+}
 
 

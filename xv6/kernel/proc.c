@@ -5,12 +5,36 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "rand.h"
 
-struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
-} ptable;
+
+uint
+rand(void)
+{
+  // Take from http://stackoverflow.com/questions/1167253/implementation-of-rand
+  static unsigned int z1 = 12345, z2 = 12345, z3 = 12345, z4 = 12345;
+  unsigned int b;
+  b  = ((z1 << 6) ^ z1) >> 13;
+  z1 = ((z1 & 4294967294U) << 18) ^ b;
+  b  = ((z2 << 2) ^ z2) >> 27; 
+  z2 = ((z2 & 4294967288U) << 2) ^ b;
+  b  = ((z3 << 13) ^ z3) >> 21;
+  z3 = ((z3 & 4294967280U) << 7) ^ b;
+  b  = ((z4 << 3) ^ z4) >> 12;
+  z4 = ((z4 & 4294967168U) << 13) ^ b;
+
+  return (z1 ^ z2 ^ z3 ^ z4) / 2;
+}
+int
+randomrange(int lo, int hi)
+{
+  if (hi < lo) {
+    int tmp = lo;
+    lo = hi;
+    hi = tmp;
+  }
+  int range = hi - lo + 1;
+  return rand() % (range) + lo;
+}
 
 static struct proc *initproc;
 
@@ -46,6 +70,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->ticks = 0; // Initialize the number of ticks to 0
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -100,6 +125,7 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->tickets = 1; // Initial process gets 1 ticket
+  //p->ticks = 0; // Initial process has run for 0 ticks
   release(&ptable.lock);
 }
 
@@ -293,7 +319,7 @@ scheduler(void)
 {
   struct proc *p;
   struct proc *selected_proc;
-  int total_tickets, winning_ticket, current_ticket;
+  long int total_tickets, winning_ticket, current_ticket;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -308,10 +334,14 @@ scheduler(void)
       if(p->state == RUNNABLE)
         total_tickets += p->tickets;
     }
+    //cprintf("Total tickets: %d\n", total_tickets);
 
     if(total_tickets > 0) {
       // Generate a winning ticket
-      winning_ticket = rand() % total_tickets;
+      winning_ticket = randomrange(0,total_tickets-1);
+      //winning_ticket = (rand() % total_tickets)+1;
+      //cprintf("Winning ticket: %d\n", winning_ticket);
+      //cprintf("Total tickets: %d\n", total_tickets);
       current_ticket = 0;
 
       // Find the winning process
@@ -331,6 +361,7 @@ scheduler(void)
       selected_proc->state = RUNNING;
       swtch(&cpu->scheduler, selected_proc->context);
       switchkvm();
+      selected_proc->ticks++;
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
