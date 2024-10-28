@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "sysfunc.h"
 #include "pstat.h"
+#include "spinlock.h"
 
 int
 sys_fork(void)
@@ -90,27 +91,46 @@ sys_uptime(void)
   return xticks;
 }
 
+/* The following code is added/modified by your Kamal and kxv230005
+** System call to set the number of tickets for a process.
+*/
+
 int
 sys_settickets(void)
 {
   int n;
+  // Get the number of tickets from the user
   if(argint(0, &n) < 0)
     return -1;
+
+  // Check if the number of tickets is valid
   if(n < 1)
     return -1;
+
+  // Set the number of tickets for the process
   proc->tickets = n;
   return 0;
 }
+
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** System call to get the process statistics.
+*/
 
 int
 sys_getpinfo(void)
 {
   struct pstat *ps;
-  if(argptr(0, (void*)&ps, sizeof(*ps)) < 0)
-    return -1;
 
+  // Get the pstat structure from the user
+  if(argptr(0, (void*)&ps, sizeof(*ps)) < 0 || ps == NULL)
+    return -1;
+  
+  // Get the process statistics
   acquire(&ptable.lock);
-  for(int i = 0; i < NPROC; i++) {
+  int i;
+  for(i = 0; i < NPROC; i++) {
     ps->inuse[i] = (ptable.proc[i].state != UNUSED);
     ps->tickets[i] = ptable.proc[i].tickets;
     ps->pid[i] = ptable.proc[i].pid;
@@ -120,5 +140,7 @@ sys_getpinfo(void)
 
   return 0;
 }
+
+/* End of code added/modified */
 
 

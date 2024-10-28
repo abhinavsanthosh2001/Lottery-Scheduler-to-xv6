@@ -1,3 +1,5 @@
+#include "rand.h"
+
 static unsigned long next = 1;
 
 int rand(void) {

@@ -1,5 +1,6 @@
 #ifndef _PROC_H_
 #define _PROC_H_
+#include "spinlock.h"
 // Segments in proc->gdt.
 // Also known to bootasm.S and trapasm.S
 #define SEG_KCODE 1  // kernel code
@@ -59,6 +60,10 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+/* The following code is added/modified by your Abhinav and axs230311
+** Added tickets and ticks to the proc structure.
+*/
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -75,7 +80,21 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int tickets;                 // Number of tickets for the lottery scheduler
+  int ticks;                   // Number of ticks this process has run
 };
+
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** Moved ptable sturcture from proc.c to proc.h
+*/
+
+struct {
+  struct spinlock lock;
+  struct proc proc[NPROC];
+} ptable;
+
+/* End of code added/modified */
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

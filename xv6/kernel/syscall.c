@@ -7,8 +7,14 @@
 #include "syscall.h"
 #include "sysfunc.h"
 
+/* The following code is added/modified by your Abhinav and axs230311
+** Added syscalls for settickets and getpinfo.
+*/
+
 extern int sys_settickets(void);
 extern int sys_getpinfo(void);
+
+/* End of code added/modified */
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -80,6 +86,10 @@ argstr(int n, char **pp)
   return fetchstr(proc, addr, pp);
 }
 
+/* The following code is added/modified by your Abhinav and axs230311
+** Added syscalls for settickets and getpinfo.
+*/
+
 // syscall function declarations moved to sysfunc.h so compiler
 // can catch definitions that don't match
 
@@ -109,6 +119,8 @@ static int (*syscalls[])(void) = {
 [SYS_settickets] sys_settickets,
 [SYS_getpinfo] sys_getpinfo,
 };
+
+/* End of code added/modified */
 
 // Called on a syscall trap. Checks that the syscall number (passed via eax)
 // is valid and then calls the appropriate handler for the syscall.

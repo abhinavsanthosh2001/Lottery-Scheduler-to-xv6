@@ -5,12 +5,40 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "rand.h"
 
-struct {
-  struct spinlock lock;
-  struct proc proc[NPROC];
-} ptable;
+/* The following code is added/modified by your Kamal and kxv230005
+** Code for the pseudo random number generator.
+*/
+uint
+rand(void)
+{
+  // Take from http://stackoverflow.com/questions/1167253/implementation-of-rand
+  static unsigned int z1 = 12345, z2 = 12345, z3 = 12345, z4 = 12345;
+  unsigned int b;
+  b  = ((z1 << 6) ^ z1) >> 13;
+  z1 = ((z1 & 4294967294U) << 18) ^ b;
+  b  = ((z2 << 2) ^ z2) >> 27; 
+  z2 = ((z2 & 4294967288U) << 2) ^ b;
+  b  = ((z3 << 13) ^ z3) >> 21;
+  z3 = ((z3 & 4294967280U) << 7) ^ b;
+  b  = ((z4 << 3) ^ z4) >> 12;
+  z4 = ((z4 & 4294967168U) << 13) ^ b;
+
+  return (z1 ^ z2 ^ z3 ^ z4) / 2;
+}
+int
+randomrange(int lo, int hi)
+{
+  if (hi < lo) {
+    int tmp = lo;
+    lo = hi;
+    hi = tmp;
+  }
+  int range = hi - lo + 1;
+  return rand() % (range) + lo;
+}
+
+/* End of code added/modified */
 
 static struct proc *initproc;
 
@@ -25,6 +53,10 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
+
+/* The following code is added/modified by your Kamal and kxv230005
+** Initialized ticks = 0
+*/
 
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -46,6 +78,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->ticks = 0; // Initialize the number of ticks to 0
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -71,6 +104,12 @@ found:
 
   return p;
 }
+
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** Initialized tickets = 0
+*/
 
 // Set up first user process.
 void
@@ -103,6 +142,8 @@ userinit(void)
   release(&ptable.lock);
 }
 
+/* End of code added/modified */
+
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
 int
@@ -122,6 +163,10 @@ growproc(int n)
   switchuvm(proc);
   return 0;
 }
+
+/* The following code is added/modified by your Kamal and kxv230005
+** Assigned same number of tickets as the parent to the child.
+*/
 
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
@@ -161,6 +206,8 @@ fork(void)
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
+
+/* End of code added/modified */
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
@@ -248,52 +295,16 @@ wait(void)
   }
 }
 
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
-// void
-// scheduler(void)
-// {
-//   struct proc *p;
-
-//   for(;;){
-//     // Enable interrupts on this processor.
-//     sti();
-
-//     // Loop over process table looking for process to run.
-//     acquire(&ptable.lock);
-//     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-//       if(p->state != RUNNABLE)
-//         continue;
-
-//       // Switch to chosen process.  It is the process's job
-//       // to release ptable.lock and then reacquire it
-//       // before jumping back to us.
-//       proc = p;
-//       switchuvm(p);
-//       p->state = RUNNING;
-//       swtch(&cpu->scheduler, proc->context);
-//       switchkvm();
-
-//       // Process is done running for now.
-//       // It should have changed its p->state before coming back.
-//       proc = 0;
-//     }
-//     release(&ptable.lock);
-
-//   }
-// }
+/* The following code is added/modified by your Kamal and kxv230005
+** Implemented the lottery scheduler in xv6.
+*/
 
 void
 scheduler(void)
 {
   struct proc *p;
   struct proc *selected_proc;
-  int total_tickets, winning_ticket, current_ticket;
+  long int total_tickets, winning_ticket, current_ticket;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -311,7 +322,7 @@ scheduler(void)
 
     if(total_tickets > 0) {
       // Generate a winning ticket
-      winning_ticket = rand() % total_tickets;
+      winning_ticket = randomrange(0,total_tickets-1);
       current_ticket = 0;
 
       // Find the winning process
@@ -331,6 +342,7 @@ scheduler(void)
       selected_proc->state = RUNNING;
       swtch(&cpu->scheduler, selected_proc->context);
       switchkvm();
+      selected_proc->ticks++;
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -340,6 +352,8 @@ scheduler(void)
     release(&ptable.lock);
   }
 }
+
+/* End of code added/modified */
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state.
