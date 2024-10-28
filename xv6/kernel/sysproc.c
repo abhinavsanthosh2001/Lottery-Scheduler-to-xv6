@@ -91,25 +91,43 @@ sys_uptime(void)
   return xticks;
 }
 
+/* The following code is added/modified by your Kamal and kxv230005
+** System call to set the number of tickets for a process.
+*/
+
 int
 sys_settickets(void)
 {
   int n;
+  // Get the number of tickets from the user
   if(argint(0, &n) < 0)
     return -1;
+
+  // Check if the number of tickets is valid
   if(n < 1)
     return -1;
+
+  // Set the number of tickets for the process
   proc->tickets = n;
   return 0;
 }
+
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** System call to get the process statistics.
+*/
 
 int
 sys_getpinfo(void)
 {
   struct pstat *ps;
+
+  // Get the pstat structure from the user
   if(argptr(0, (void*)&ps, sizeof(*ps)) < 0 || ps == NULL)
     return -1;
-
+  
+  // Get the process statistics
   acquire(&ptable.lock);
   int i;
   for(i = 0; i < NPROC; i++) {
@@ -122,5 +140,7 @@ sys_getpinfo(void)
 
   return 0;
 }
+
+/* End of code added/modified */
 
 

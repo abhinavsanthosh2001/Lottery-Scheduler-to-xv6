@@ -1,3 +1,7 @@
+/* The following code is added/modified by your Abhinav and axs230311
+** Structure for process statistics.
+*/
+
 #ifndef _PSTAT_H_
 #define _PSTAT_H_
 
@@ -11,3 +15,5 @@ struct pstat {
 };
 
 #endif
+
+/* End of code added/modified */

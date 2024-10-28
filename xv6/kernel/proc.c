@@ -6,7 +6,9 @@
 #include "proc.h"
 #include "spinlock.h"
 
-
+/* The following code is added/modified by your Kamal and kxv230005
+** Code for the pseudo random number generator.
+*/
 uint
 rand(void)
 {
@@ -36,6 +38,8 @@ randomrange(int lo, int hi)
   return rand() % (range) + lo;
 }
 
+/* End of code added/modified */
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -49,6 +53,10 @@ pinit(void)
 {
   initlock(&ptable.lock, "ptable");
 }
+
+/* The following code is added/modified by your Kamal and kxv230005
+** Initialized ticks = 0
+*/
 
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -97,6 +105,12 @@ found:
   return p;
 }
 
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** Initialized tickets = 0
+*/
+
 // Set up first user process.
 void
 userinit(void)
@@ -125,9 +139,10 @@ userinit(void)
 
   p->state = RUNNABLE;
   p->tickets = 1; // Initial process gets 1 ticket
-  //p->ticks = 0; // Initial process has run for 0 ticks
   release(&ptable.lock);
 }
+
+/* End of code added/modified */
 
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
@@ -148,6 +163,10 @@ growproc(int n)
   switchuvm(proc);
   return 0;
 }
+
+/* The following code is added/modified by your Kamal and kxv230005
+** Assigned same number of tickets as the parent to the child.
+*/
 
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
@@ -187,6 +206,8 @@ fork(void)
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
+
+/* End of code added/modified */
 
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
@@ -274,45 +295,9 @@ wait(void)
   }
 }
 
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
-// void
-// scheduler(void)
-// {
-//   struct proc *p;
-
-//   for(;;){
-//     // Enable interrupts on this processor.
-//     sti();
-
-//     // Loop over process table looking for process to run.
-//     acquire(&ptable.lock);
-//     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-//       if(p->state != RUNNABLE)
-//         continue;
-
-//       // Switch to chosen process.  It is the process's job
-//       // to release ptable.lock and then reacquire it
-//       // before jumping back to us.
-//       proc = p;
-//       switchuvm(p);
-//       p->state = RUNNING;
-//       swtch(&cpu->scheduler, proc->context);
-//       switchkvm();
-
-//       // Process is done running for now.
-//       // It should have changed its p->state before coming back.
-//       proc = 0;
-//     }
-//     release(&ptable.lock);
-
-//   }
-// }
+/* The following code is added/modified by your Kamal and kxv230005
+** Implemented the lottery scheduler in xv6.
+*/
 
 void
 scheduler(void)
@@ -334,14 +319,10 @@ scheduler(void)
       if(p->state == RUNNABLE)
         total_tickets += p->tickets;
     }
-    //cprintf("Total tickets: %d\n", total_tickets);
 
     if(total_tickets > 0) {
       // Generate a winning ticket
       winning_ticket = randomrange(0,total_tickets-1);
-      //winning_ticket = (rand() % total_tickets)+1;
-      //cprintf("Winning ticket: %d\n", winning_ticket);
-      //cprintf("Total tickets: %d\n", total_tickets);
       current_ticket = 0;
 
       // Find the winning process
@@ -371,6 +352,8 @@ scheduler(void)
     release(&ptable.lock);
   }
 }
+
+/* End of code added/modified */
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state.

@@ -60,6 +60,10 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+/* The following code is added/modified by your Abhinav and axs230311
+** Added tickets and ticks to the proc structure.
+*/
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -79,10 +83,18 @@ struct proc {
   int ticks;                   // Number of ticks this process has run
 };
 
+/* End of code added/modified */
+
+/* The following code is added/modified by your Abhinav and axs230311
+** Moved ptable sturcture from proc.c to proc.h
+*/
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+/* End of code added/modified */
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
